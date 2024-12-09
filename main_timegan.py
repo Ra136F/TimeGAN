@@ -29,6 +29,7 @@ from __future__ import print_function
 import argparse
 import numpy as np
 import warnings
+import pandas as pd
 warnings.filterwarnings("ignore")
 
 # 1. TimeGAN model
@@ -161,3 +162,9 @@ if __name__ == '__main__':
   
   # Calls main function  
   ori_data, generated_data, metrics = main(args)
+  generated_data_df = pd.DataFrame(
+      [item.flatten() for item in generated_data],  # Flatten the data for CSV saving
+      columns=[f'Feature_{i + 1}' for i in range(len(generated_data[0][0]))]
+  )
+  generated_data_df.to_csv('generated_data.csv', index=False)
+  print("Generated data saved to 'generated_data.csv'")
