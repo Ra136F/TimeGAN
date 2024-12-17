@@ -30,6 +30,9 @@ import argparse
 import numpy as np
 import warnings
 import pandas as pd
+
+from utils import extract_time, random_generator
+
 warnings.filterwarnings("ignore")
 
 # 1. TimeGAN model
@@ -40,6 +43,8 @@ from data_loading import real_data_loading, sine_data_generation
 from metrics.discriminative_metrics import discriminative_score_metrics
 from metrics.predictive_metrics import predictive_score_metrics
 from metrics.visualization_metrics import visualization
+import os
+import tensorflow as tf
 
 
 def main (args):
@@ -79,8 +84,29 @@ def main (args):
   parameters['num_layer'] = args.num_layer
   parameters['iterations'] = args.iteration
   parameters['batch_size'] = args.batch_size
-      
-  generated_data = timegan(ori_data, parameters)   
+
+  model_dir = "./saved_model"
+  model_path = os.path.join(model_dir, "timegan_model.ckpt")
+
+
+  # Check if model exists
+  if os.path.exists(model_path + ".meta"):
+      print("Detected existing model. Loading the saved model...")
+      # tf.compat.v1.reset_default_graph()
+      tf.compat.v1.disable_eager_execution()
+      saver = tf.compat.v1.train.import_meta_graph(model_path + ".meta")
+      sess = tf.compat.v1.Session()
+      saver.restore(sess, model_path)
+      print("Model loaded successfully.")
+      # Generate synthetic data
+      generated_data = generate_synthetic_data(sess, ori_data, parameters)
+  else:
+      print("No existing model detected. Training a new model...")
+      generated_data = timegan(ori_data, parameters)
+      # Save the model after training
+
+
+  # generated_data = timegan(ori_data, parameters)
   print('Finish Synthetic Data Generation')
   
   ## Performance metrics   
@@ -111,6 +137,23 @@ def main (args):
   print(metric_results)
 
   return ori_data, generated_data, metric_results
+
+def generate_synthetic_data(sess, ori_data, parameters):
+    """Generate synthetic data using the trained TimeGAN model."""
+    ori_time, max_seq_len = extract_time(ori_data)
+    no, seq_len, dim = np.asarray(ori_data).shape
+    z_dim = parameters['hidden_dim']
+    Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
+    graph = tf.compat.v1.get_default_graph()
+    X_hat = graph.get_tensor_by_name("X_hat:0")
+    T = graph.get_tensor_by_name("myinput_t:0")
+    Z = graph.get_tensor_by_name("myinput_z:0")
+    generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, T: ori_time})
+    generated_data = [
+        generated_data_curr[i, :ori_time[i], :] for i in range(len(ori_data))
+    ]
+    return generated_data
+
 
 
 if __name__ == '__main__':  
@@ -145,7 +188,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=50000,
+      default=2000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -162,9 +205,12 @@ if __name__ == '__main__':
   
   # Calls main function  
   ori_data, generated_data, metrics = main(args)
-  generated_data_df = pd.DataFrame(
-      [item.flatten() for item in generated_data],  # Flatten the data for CSV saving
-      columns=[f'Feature_{i + 1}' for i in range(len(generated_data[0][0]))]
-  )
-  generated_data_df.to_csv('generated_data.csv', index=False)
-  print("Generated data saved to 'generated_data.csv'")
+  print(metrics)
+  print("打印数组")
+  print(generated_data)
+  # generated_data_df = pd.DataFrame(
+  #     [item.flatten() for item in generated_data],  # Flatten the data for CSV saving
+  #     columns=[f'Feature_{i + 1}' for i in range(len(generated_data[0][0]))]
+  # )
+  # generated_data_df.to_csv('generated_data.csv', index=False)
+  # print("Generated data saved to 'generated_data.csv'")

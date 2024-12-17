@@ -20,6 +20,7 @@ Note: Use original data as training set to generater synthetic data (time-series
 import tensorflow as tf
 import numpy as np
 from utils import extract_time, rnn_cell, random_generator, batch_generator
+import  os
 
 def timegan (ori_data, parameters):
   """TimeGAN function.
@@ -33,14 +34,17 @@ def timegan (ori_data, parameters):
   Returns:
     - generated_data: generated time-series data
   """
+  # tf.compat.v1.disable_v2_behavior()
   # Initialization on the Graph
   tf.compat.v1.reset_default_graph()
+
 
   # Basic Parameters
   no, seq_len, dim = np.asarray(ori_data).shape
     
   # Maximum sequence length and each sequence length
   ori_time, max_seq_len = extract_time(ori_data)
+
   
   def MinMaxScaler(data):
     """Min-Max Normalizer.
@@ -77,6 +81,7 @@ def timegan (ori_data, parameters):
     
 
   tf.compat.v1.disable_eager_execution()
+
 
   # Input place holders
   X = tf.compat.v1.placeholder(tf.float32, [None, max_seq_len, dim], name = "myinput_x")
@@ -173,7 +178,7 @@ def timegan (ori_data, parameters):
   H_hat_supervise = supervisor(H, T)
 
   # Synthetic data
-  X_hat = recovery(H_hat, T)
+  X_hat = tf.identity(recovery(H_hat, T), name="X_hat")
 
   # Discriminator
   Y_fake = discriminator(H_hat, T)
@@ -222,6 +227,7 @@ def timegan (ori_data, parameters):
   G_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss, var_list = g_vars + s_vars)
   GS_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss_S, var_list = g_vars + s_vars)
 
+  saver = tf.compat.v1.train.Saver()
   ## TimeGAN training
   sess = tf.compat.v1.Session()
   sess.run(tf.compat.v1.global_variables_initializer())
@@ -291,9 +297,15 @@ def timegan (ori_data, parameters):
             ', g_loss_v: ' + str(np.round(step_g_loss_v,4)) +
             ', e_loss_t0: ' + str(np.round(np.sqrt(step_e_loss_t0),4))  )
   print('Finish Joint Training')
+  print("X_hat name:", X_hat.name)  # 确保输出为 "X_hat:0"
+  model_dir = "./saved_model"
+  model_path = os.path.join(model_dir, "timegan_model.ckpt")
+  print('保存模型')
+  saver.save(sess, model_path)
 
   ## Synthetic data generation
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
+  print(Z_mb.shape)
   generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})
 
   generated_data = list()
@@ -302,6 +314,10 @@ def timegan (ori_data, parameters):
     temp = generated_data_curr[i,:ori_time[i],:]
     generated_data.append(temp)
 
+  # if not os.path.exists("./save_model"):
+  #   os.makedirs("./save_model")
+  # saver.save(sess, model_path)
+  # print(f"Model saved at {model_path}")
   # Renormalization
   generated_data = generated_data * max_val
   generated_data = generated_data + min_val
