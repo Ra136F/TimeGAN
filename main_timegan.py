@@ -205,7 +205,7 @@ if __name__ == '__main__':
   
   # Calls main function  
   ori_data, generated_data, metrics = main(args)
-  print(metrics)
+
   print("打印数组")
   print(generated_data)
   # generated_data_df = pd.DataFrame(
