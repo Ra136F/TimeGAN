@@ -22,9 +22,10 @@ tf.compat.v1.disable_eager_execution()
 
 import numpy as np
 from utils import extract_time, rnn_cell, random_generator, batch_generator
+import os
 
 
-def timegan (ori_data, parameters):
+def timegan (ori_data, parameters,load_model,model_path):
   """TimeGAN function.
   
   Use original data as training set to generater synthetic data (time-series)
@@ -280,77 +281,88 @@ def timegan (ori_data, parameters):
   E_solver = tf.compat.v1.train.AdamOptimizer().minimize(E_loss, var_list = e_vars + r_vars)
   D_solver = tf.compat.v1.train.AdamOptimizer().minimize(D_loss, var_list = d_vars)
   G_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss, var_list = g_vars + s_vars)      
-  GS_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss_S, var_list = g_vars + s_vars)   
-        
-  ## TimeGAN training   
+  GS_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss_S, var_list = g_vars + s_vars)
+
+  saver = tf.compat.v1.train.Saver()
+  ## TimeGAN training
   sess = tf.compat.v1.Session()
   sess.run(tf.compat.v1.global_variables_initializer())
-    
-  # 1. Embedding network training
-  print('Start Embedding Network Training')
-    
-  for itt in range(iterations):
-    # Set mini-batch
-    X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)           
-    # Train embedder        
-    _, step_e_loss = sess.run([E0_solver, E_loss_T0], feed_dict={X: X_mb, T: T_mb})        
-    # Checkpoint
-    if itt % 1000 == 0:
-      print('step: '+ str(itt) + '/' + str(iterations) + ', e_loss: ' + str(np.round(np.sqrt(step_e_loss),4)) ) 
-      
-  print('Finish Embedding Network Training')
-    
-  # 2. Training only with supervised loss
-  print('Start Training with Supervised Loss Only')
-    
-  for itt in range(iterations):
-    # Set mini-batch
-    X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)    
-    # Random vector generation   
-    Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
-    # Train generator       
-    _, step_g_loss_s = sess.run([GS_solver, G_loss_S], feed_dict={Z: Z_mb, X: X_mb, T: T_mb})       
-    # Checkpoint
-    if itt % 1000 == 0:
-      print('step: '+ str(itt)  + '/' + str(iterations) +', s_loss: ' + str(np.round(np.sqrt(step_g_loss_s),4)) )
-      
-  print('Finish Training with Supervised Loss Only')
-    
-  # 3. Joint Training
-  print('Start Joint Training')
-  
-  for itt in range(iterations):
-    # Generator training (twice more than discriminator training)
-    for kk in range(2):
+
+  if load_model and model_path is not None and os.path.exists(model_path + ".meta"):
+    print(f"Loading model from {model_path}...")
+    saver.restore(sess, model_path)
+    print(f"Model restored from {model_path}")
+  else:
+    # 1. Embedding network training
+    print('Start Embedding Network Training')
+
+    for itt in range(iterations):
       # Set mini-batch
-      X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)               
+      X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)
+      # Train embedder
+      _, step_e_loss = sess.run([E0_solver, E_loss_T0], feed_dict={X: X_mb, T: T_mb})
+      # Checkpoint
+      if itt % 1000 == 0:
+        print('step: ' + str(itt) + '/' + str(iterations) + ', e_loss: ' + str(np.round(np.sqrt(step_e_loss), 4)))
+
+    print('Finish Embedding Network Training')
+
+    # 2. Training only with supervised loss
+    print('Start Training with Supervised Loss Only')
+
+    for itt in range(iterations):
+      # Set mini-batch
+      X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)
       # Random vector generation
       Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
       # Train generator
-      _, step_g_loss_u, step_g_loss_s, step_g_loss_v = sess.run([G_solver, G_loss_U, G_loss_S, G_loss_V], feed_dict={Z: Z_mb, X: X_mb, T: T_mb})
-       # Train embedder        
-      _, step_e_loss_t0 = sess.run([E_solver, E_loss_T0], feed_dict={Z: Z_mb, X: X_mb, T: T_mb})   
-           
-    # Discriminator training        
-    # Set mini-batch
-    X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)           
-    # Random vector generation
-    Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
-    # Check discriminator loss before updating
-    check_d_loss = sess.run(D_loss, feed_dict={X: X_mb, T: T_mb, Z: Z_mb})
-    # Train discriminator (only when the discriminator does not work well)
-    if (check_d_loss > 0.15):        
-      _, step_d_loss = sess.run([D_solver, D_loss], feed_dict={X: X_mb, T: T_mb, Z: Z_mb})
-        
-    # Print multiple checkpoints
-    if itt % 1000 == 0:
-      print('step: '+ str(itt) + '/' + str(iterations) + 
-            ', d_loss: ' + str(np.round(step_d_loss,4)) + 
-            ', g_loss_u: ' + str(np.round(step_g_loss_u,4)) + 
-            ', g_loss_s: ' + str(np.round(np.sqrt(step_g_loss_s),4)) + 
-            ', g_loss_v: ' + str(np.round(step_g_loss_v,4)) + 
-            ', e_loss_t0: ' + str(np.round(np.sqrt(step_e_loss_t0),4))  )
-  print('Finish Joint Training')
+      _, step_g_loss_s = sess.run([GS_solver, G_loss_S], feed_dict={Z: Z_mb, X: X_mb, T: T_mb})
+      # Checkpoint
+      if itt % 1000 == 0:
+        print('step: ' + str(itt) + '/' + str(iterations) + ', s_loss: ' + str(np.round(np.sqrt(step_g_loss_s), 4)))
+
+    print('Finish Training with Supervised Loss Only')
+
+    # 3. Joint Training
+    print('Start Joint Training')
+
+    for itt in range(iterations):
+      # Generator training (twice more than discriminator training)
+      for kk in range(2):
+        # Set mini-batch
+        X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)
+        # Random vector generation
+        Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
+        # Train generator
+        _, step_g_loss_u, step_g_loss_s, step_g_loss_v = sess.run([G_solver, G_loss_U, G_loss_S, G_loss_V],
+                                                                  feed_dict={Z: Z_mb, X: X_mb, T: T_mb})
+        # Train embedder
+        _, step_e_loss_t0 = sess.run([E_solver, E_loss_T0], feed_dict={Z: Z_mb, X: X_mb, T: T_mb})
+
+      # Discriminator training
+      # Set mini-batch
+      X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)
+      # Random vector generation
+      Z_mb = random_generator(batch_size, z_dim, T_mb, max_seq_len)
+      # Check discriminator loss before updating
+      check_d_loss = sess.run(D_loss, feed_dict={X: X_mb, T: T_mb, Z: Z_mb})
+      # Train discriminator (only when the discriminator does not work well)
+      if (check_d_loss > 0.15):
+        _, step_d_loss = sess.run([D_solver, D_loss], feed_dict={X: X_mb, T: T_mb, Z: Z_mb})
+
+      # Print multiple checkpoints
+      if itt % 1000 == 0:
+        print('step: ' + str(itt) + '/' + str(iterations) +
+              ', d_loss: ' + str(np.round(step_d_loss, 4)) +
+              ', g_loss_u: ' + str(np.round(step_g_loss_u, 4)) +
+              ', g_loss_s: ' + str(np.round(np.sqrt(step_g_loss_s), 4)) +
+              ', g_loss_v: ' + str(np.round(step_g_loss_v, 4)) +
+              ', e_loss_t0: ' + str(np.round(np.sqrt(step_e_loss_t0), 4)))
+    print('Finish Joint Training')
+    if model_path is not None:
+      print(f"Saving model to {model_path}...")
+      saver.save(sess, model_path)
+      print(f"Model saved at {model_path}")
     
   ## Synthetic data generation
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)

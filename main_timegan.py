@@ -178,7 +178,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=2000,
+      default=5000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -188,7 +188,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--metric_iteration',
       help='iterations of the metric computation',
-      default=10,
+      default=3,
       type=int)
   
   args = parser.parse_args() 
@@ -196,11 +196,3 @@ if __name__ == '__main__':
   # Calls main function  
   ori_data, generated_data, metrics = main(args)
 
-  print("打印数组")
-  print(generated_data)
-  # generated_data_df = pd.DataFrame(
-  #     [item.flatten() for item in generated_data],  # Flatten the data for CSV saving
-  #     columns=[f'Feature_{i + 1}' for i in range(len(generated_data[0][0]))]
-  # )
-  # generated_data_df.to_csv('generated_data.csv', index=False)
-  # print("Generated data saved to 'generated_data.csv'")
