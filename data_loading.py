@@ -24,6 +24,35 @@ data_loading.py
 import numpy as np
 
 
+def restore_data(processed_data, seq_len):
+  """
+  Restore the processed data (after real_data_loading) back to its original form.
+
+  Args:
+      - processed_data: List of processed time sequences (after splitting and shuffling).
+      - seq_len: Sequence length used during splitting.
+
+  Returns:
+      - restored_data: The restored original data.
+  """
+
+  # Calculate the number of sequences
+  num_sequences = len(processed_data)
+
+  # Ensure the processed data is a list of sequences of length seq_len
+  assert all(len(seq) == seq_len for seq in processed_data), "All sequences should have length equal to seq_len"
+
+  # Reconstruct the original data from the sequences
+  temp_data = []
+  for seq in processed_data:
+    temp_data.extend(seq)  # Concatenate sequences back into one list
+
+  # The original data length can be inferred from the number of sequences and seq_len
+  restored_data = np.array(temp_data)
+
+  return restored_data
+
+
 def MinMaxScaler(data):
   """Min Max normalizer.
   

@@ -84,21 +84,6 @@ def timegan (ori_data, parameters,load_model,model_path):
   Z = tf.compat.v1.placeholder(tf.float32, [None, max_seq_len, z_dim], name = "myinput_z")
   T = tf.compat.v1.placeholder(tf.int32, [None], name = "myinput_t")
 
-  # def embedder (X, T):
-  #   """Embedding network between original feature space to latent space.
-  #
-  #   Args:
-  #     - X: input time-series features
-  #     - T: input time information
-  #
-  #   Returns:
-  #     - H: embeddings
-  #   """
-  #   with tf.compat.v1.variable_scope("embedder", reuse = tf.compat.v1.AUTO_REUSE):
-  #     e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-  #     e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
-  #     H = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
-  #   return H
 
   def embedder(X, T):
     """Embedding network between original feature space to latent space using DCCN.
@@ -124,22 +109,7 @@ def timegan (ori_data, parameters,load_model,model_path):
         )
       H = tf.compat.v1.layers.dense(conv_outputs, hidden_dim, activation=tf.nn.sigmoid)
     return H
-      
-  # def recovery (H, T):
-  #   """Recovery network from latent space to original space.
-  #
-  #   Args:
-  #     - H: latent representation
-  #     - T: input time information
-  #
-  #   Returns:
-  #     - X_tilde: recovered data
-  #   """
-  #   with tf.compat.v1.variable_scope("recovery", reuse = tf.compat.v1.AUTO_REUSE):
-  #     r_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-  #     r_outputs, r_last_states = tf.compat.v1.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
-  #     X_tilde = tf.compat.v1.layers.dense(r_outputs, dim, activation=tf.nn.sigmoid)
-  #   return X_tilde
+
 
   def recovery(H, T):
     """Recovery network from latent space to original space using attention-based decoder.
@@ -157,21 +127,7 @@ def timegan (ori_data, parameters,load_model,model_path):
       X_tilde = tf.compat.v1.layers.dense(attention_outputs, dim, activation=tf.nn.sigmoid)
     return X_tilde
     
-  # def generator (Z, T):
-  #   """Generator function: Generate time-series data in latent space.
-  #
-  #   Args:
-  #     - Z: random variables
-  #     - T: input time information
-  #
-  #   Returns:
-  #     - E: generated embedding
-  #   """
-  #   with tf.compat.v1.variable_scope("generator", reuse = tf.compat.v1.AUTO_REUSE):
-  #     e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-  #     e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, Z, dtype=tf.float32, sequence_length = T)
-  #     E = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
-  #   return E
+
 
   def generator(Z, T):
     """Generator function using BiRNN.

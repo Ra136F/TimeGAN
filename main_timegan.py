@@ -31,6 +31,7 @@ import numpy as np
 import warnings
 import pandas as pd
 
+from TimeGAN.DTW import compute_dtw_distance
 from utils import extract_time, random_generator
 
 warnings.filterwarnings("ignore")
@@ -38,7 +39,7 @@ warnings.filterwarnings("ignore")
 # 1. TimeGAN model
 from timegan import timegan
 # 2. Data loading
-from data_loading import real_data_loading, sine_data_generation
+from data_loading import real_data_loading, sine_data_generation, restore_data
 # 3. Metrics
 from metrics.discriminative_metrics import discriminative_score_metrics
 from metrics.predictive_metrics import predictive_score_metrics
@@ -103,30 +104,30 @@ def main (args):
   # Output initialization
   metric_results = dict()
   
-  # 1. Discriminative Score
-  discriminative_score = list()
-  for _ in range(args.metric_iteration):
-    temp_disc = discriminative_score_metrics(ori_data, generated_data)
-    discriminative_score.append(temp_disc)
-      
-  metric_results['discriminative'] = np.mean(discriminative_score)
-      
-  # 2. Predictive score
-  predictive_score = list()
-  for tt in range(args.metric_iteration):
-    temp_pred = predictive_score_metrics(ori_data, generated_data)
-    predictive_score.append(temp_pred)   
-      
-  metric_results['predictive'] = np.mean(predictive_score)     
+  # # 1. Discriminative Score
+  # discriminative_score = list()
+  # for _ in range(args.metric_iteration):
+  #   temp_disc = discriminative_score_metrics(ori_data, generated_data)
+  #   discriminative_score.append(temp_disc)
+  #
+  # metric_results['discriminative'] = np.mean(discriminative_score)
+  #
+  # # 2. Predictive score
+  # predictive_score = list()
+  # for tt in range(args.metric_iteration):
+  #   temp_pred = predictive_score_metrics(ori_data, generated_data)
+  #   predictive_score.append(temp_pred)
+  #
+  # metric_results['predictive'] = np.mean(predictive_score)
           
-  # 3. Visualization (PCA and tSNE)
-  visualization(ori_data, generated_data, 'pca')
-  visualization(ori_data, generated_data, 'tsne')
+  # # 3. Visualization (PCA and tSNE)
+  # visualization(ori_data, generated_data, 'pca')
+  # visualization(ori_data, generated_data, 'tsne')
   
   ## Print discriminative and predictive scores
-  print(metric_results)
+  # print(metric_results)
 
-  return ori_data, generated_data, metric_results
+  return ori_data, generated_data
 
 def generate_synthetic_data(sess, ori_data, parameters):
     """Generate synthetic data using the trained TimeGAN model."""
@@ -194,5 +195,14 @@ if __name__ == '__main__':
   args = parser.parse_args() 
   
   # Calls main function  
-  ori_data, generated_data, metrics = main(args)
+  ori_data, generated_data = main(args)
+  ori=restore_data(ori_data, 24)
+  gen=restore_data(generated_data, 24)
+  # dimen2=np.array(ori).shape
+  # dimen=np.array(gen).shape
+  # print(dimen)
+  # print(dimen2)
+  # print(ori)
+  dtw_distance, alignment_path = compute_dtw_distance(gen, ori)
 
+  print(f'dtw_distance:{dtw_distance}')
