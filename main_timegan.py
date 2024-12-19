@@ -85,25 +85,15 @@ def main (args):
   parameters['iterations'] = args.iteration
   parameters['batch_size'] = args.batch_size
 
-  model_dir = "./saved_model"
-  model_path = os.path.join(model_dir, "timegan_model.ckpt")
+  model_path = './save_model/TDgan_model'
 
-
-  # Check if model exists
   if os.path.exists(model_path + ".meta"):
-      print("Detected existing model. Loading the saved model...")
-      # tf.compat.v1.reset_default_graph()
-      tf.compat.v1.disable_eager_execution()
-      saver = tf.compat.v1.train.import_meta_graph(model_path + ".meta")
-      sess = tf.compat.v1.Session()
-      saver.restore(sess, model_path)
-      print("Model loaded successfully.")
-      # Generate synthetic data
-      generated_data = generate_synthetic_data(sess, ori_data, parameters)
+      print(f"Model found at {model_path}, loading the model.")
+      load_model = True
   else:
-      print("No existing model detected. Training a new model...")
-      generated_data = timegan(ori_data, parameters)
-      # Save the model after training
+      print(f"No model found at {model_path}, starting training from scratch.")
+      load_model = False
+  generated_data = timegan(ori_data, parameters, load_model, model_path)
 
 
   # generated_data = timegan(ori_data, parameters)
