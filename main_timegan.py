@@ -86,6 +86,7 @@ def main (args):
   parameters['iterations'] = args.iteration
   parameters['batch_size'] = args.batch_size
 
+  #加载模型
   model_path = './save_model/TDgan_model'
 
   if os.path.exists(model_path + ".meta"):
@@ -94,7 +95,7 @@ def main (args):
   else:
       print(f"No model found at {model_path}, starting training from scratch.")
       load_model = False
-  generated_data = timegan(ori_data, parameters, load_model, model_path,True)
+  generated_data = timegan(ori_data, parameters, load_model, model_path,False)
 
 
   # generated_data = timegan(ori_data, parameters)

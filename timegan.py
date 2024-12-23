@@ -243,7 +243,7 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
   ## TimeGAN training
   sess = tf.compat.v1.Session()
   sess.run(tf.compat.v1.global_variables_initializer())
-
+  #
   if load_model  and os.path.exists(model_path + ".meta"):
     print(f"Loading model from {model_path}...")
     saver.restore(sess, model_path)
