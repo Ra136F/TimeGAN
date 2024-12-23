@@ -94,7 +94,7 @@ def main (args):
   else:
       print(f"No model found at {model_path}, starting training from scratch.")
       load_model = False
-  generated_data = timegan(ori_data, parameters, load_model, model_path)
+  generated_data = timegan(ori_data, parameters, load_model, model_path,True)
 
 
   # generated_data = timegan(ori_data, parameters)
@@ -179,7 +179,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=5000,
+      default=10000,
       type=int)
   parser.add_argument(
       '--batch_size',

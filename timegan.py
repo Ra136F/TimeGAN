@@ -25,7 +25,7 @@ from utils import extract_time, rnn_cell, random_generator, batch_generator
 import os
 
 
-def timegan (ori_data, parameters,load_model,model_path):
+def timegan (ori_data, parameters,load_model,model_path,continued=False):
   """TimeGAN function.
   
   Use original data as training set to generater synthetic data (time-series)
@@ -244,14 +244,14 @@ def timegan (ori_data, parameters,load_model,model_path):
   sess = tf.compat.v1.Session()
   sess.run(tf.compat.v1.global_variables_initializer())
 
-  if load_model and model_path is not None and os.path.exists(model_path + ".meta"):
+  if load_model  and os.path.exists(model_path + ".meta"):
     print(f"Loading model from {model_path}...")
     saver.restore(sess, model_path)
     print(f"Model restored from {model_path}")
-  else:
+  if continued or load_model==False :
+    print('未检测到模型或者继续训练模型')
     # 1. Embedding network training
     print('Start Embedding Network Training')
-
     for itt in range(iterations):
       # Set mini-batch
       X_mb, T_mb = batch_generator(ori_data, ori_time, batch_size)
