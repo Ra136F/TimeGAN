@@ -32,14 +32,14 @@ import warnings
 import pandas as pd
 
 from TimeGAN.DTW import compute_dtw_distance
-from utils import extract_time, random_generator
+from utils import extract_time, random_generator, calculate_rmse, calculate_mape, plottp
 
 warnings.filterwarnings("ignore")
 
 # 1. TimeGAN model
 from timegan import timegan
 # 2. Data loading
-from data_loading import real_data_loading, sine_data_generation, restore_data
+from data_loading import real_data_loading, sine_data_generation, restore_data, real_data_loading2
 # 3. Metrics
 from metrics.discriminative_metrics import discriminative_score_metrics
 from metrics.predictive_metrics import predictive_score_metrics
@@ -68,14 +68,16 @@ def main (args):
     - metric_results: discriminative and predictive scores
   """
   ## Data loading
-  if args.data_name in ['stock', 'energy']:
-    ori_data = real_data_loading(args.data_name, args.seq_len)
+  ori_data=[]
+  if args.data_name !='sine':
+    ori_data = real_data_loading(args.data_name, args.seq_len,args.target)
   elif args.data_name == 'sine':
     # Set number of samples and its dimensions
     no, dim = 10000, 5
     ori_data = sine_data_generation(no, args.seq_len, dim)
     
   print(args.data_name + ' dataset is ready.')
+  print(len(ori_data))
     
   ## Synthetic data generation by TimeGAN
   # Set newtork parameters
@@ -87,46 +89,51 @@ def main (args):
   parameters['batch_size'] = args.batch_size
 
   #加载模型
-  model_path = './save_model/TDgan_model'
-
-  if os.path.exists(model_path + ".meta"):
-      print(f"Model found at {model_path}, loading the model.")
-      load_model = True
-  else:
-      print(f"No model found at {model_path}, starting training from scratch.")
-      load_model = False
-  generated_data = timegan(ori_data, parameters, load_model, model_path,False)
+  model_name='data-{}'.format(args.data_name)
+  model_path=os.path.join(args.model_path, model_name)
+  result_path=os.path.join('./result/', model_name)
+  if not os.path.exists(model_path):
+      os.makedirs(model_path)
+  if not os.path.exists(result_path):
+      os.makedirs(result_path)
+  # if os.path.exists(model_path + ".meta"):
+  #     print(f"Model found at {model_path}, loading the model.")
+  #     load_model = True
+  # else:
+  #     print(f"No model found at {model_path}, starting training from scratch.")
+  #     load_model = False
+  generated_data = timegan(ori_data, parameters,model_path,args.train,result_path)
 
 
   # generated_data = timegan(ori_data, parameters)
   print('Finish Synthetic Data Generation')
   
-  ## Performance metrics   
+  # Performance metrics
   # Output initialization
   metric_results = dict()
-  
-  # # 1. Discriminative Score
-  # discriminative_score = list()
-  # for _ in range(args.metric_iteration):
-  #   temp_disc = discriminative_score_metrics(ori_data, generated_data)
-  #   discriminative_score.append(temp_disc)
-  #
-  # metric_results['discriminative'] = np.mean(discriminative_score)
-  #
-  # # 2. Predictive score
-  # predictive_score = list()
-  # for tt in range(args.metric_iteration):
-  #   temp_pred = predictive_score_metrics(ori_data, generated_data)
-  #   predictive_score.append(temp_pred)
-  #
-  # metric_results['predictive'] = np.mean(predictive_score)
+
+  # 1. Discriminative Score
+  discriminative_score = list()
+  for _ in range(args.metric_iteration):
+    temp_disc = discriminative_score_metrics(ori_data, generated_data)
+    discriminative_score.append(temp_disc)
+
+  metric_results['discriminative'] = np.mean(discriminative_score)
+
+  # 2. Predictive score
+  predictive_score = list()
+  for tt in range(args.metric_iteration):
+    temp_pred = predictive_score_metrics(ori_data, generated_data)
+    predictive_score.append(temp_pred)
+
+  metric_results['predictive'] = np.mean(predictive_score)
           
-  # # 3. Visualization (PCA and tSNE)
-  # visualization(ori_data, generated_data, 'pca')
-  # visualization(ori_data, generated_data, 'tsne')
+  # 3. Visualization (PCA and tSNE)
+  visualization(ori_data, generated_data, 'pca')
+  visualization(ori_data, generated_data, 'tsne')
   
   ## Print discriminative and predictive scores
-  # print(metric_results)
+  print(metric_results)
 
   return ori_data, generated_data
 
@@ -154,8 +161,8 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--data_name',
-      choices=['sine','stock','energy'],
-      default='stock',
+      choices=['sine','stock','energy','Walmart','train'],
+      default='train',
       type=str)
   parser.add_argument(
       '--seq_len',
@@ -180,7 +187,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=10000,
+      default=5000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -190,20 +197,36 @@ if __name__ == '__main__':
   parser.add_argument(
       '--metric_iteration',
       help='iterations of the metric computation',
-      default=3,
+      default=10,
       type=int)
+  parser.add_argument(
+      '--train',
+      default=True,
+      type=bool)
+  parser.add_argument(
+      '--model_path',
+      default='./save_model/',
+      type=str)
+  parser.add_argument(
+      '--target',
+      default='Sales',
+      type=str)
   
   args = parser.parse_args() 
   
   # Calls main function  
   ori_data, generated_data = main(args)
-  ori=restore_data(ori_data, 24)
-  gen=restore_data(generated_data, 24)
-  # dimen2=np.array(ori).shape
-  # dimen=np.array(gen).shape
-  # print(dimen)
-  # print(dimen2)
-  # print(ori)
-  dtw_distance, alignment_path = compute_dtw_distance(gen, ori)
+  #三维转二维数组
+  gen_data=restore_data(generated_data,args.seq_len)
+  print(len(gen_data))
+  #重新加载真实数据
+  true_data=real_data_loading2(args.data_name, args.seq_len,args.target)
+  true_data=np.array(true_data)
+  true_data = restore_data(true_data, args.seq_len)
+  real_y_true_mask = (1 - (true_data == 0))
+  rmse=calculate_rmse(true_data, gen_data)
+  mape=calculate_mape(true_data, gen_data, real_y_true_mask)
+  print(f"RMSE: {rmse}")
+  print(f"MAPE: {mape}")
+  plottp(true_data,gen_data)
 
-  print(f'dtw_distance:{dtw_distance}')

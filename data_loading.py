@@ -22,6 +22,7 @@ data_loading.py
 
 ## Necessary Packages
 import numpy as np
+import pandas as pd
 
 
 def restore_data(processed_data, seq_len):
@@ -41,15 +42,11 @@ def restore_data(processed_data, seq_len):
 
   # Ensure the processed data is a list of sequences of length seq_len
   assert all(len(seq) == seq_len for seq in processed_data), "All sequences should have length equal to seq_len"
-
-  # Reconstruct the original data from the sequences
-  temp_data = []
-  for seq in processed_data:
-    temp_data.extend(seq)  # Concatenate sequences back into one list
-
-  # The original data length can be inferred from the number of sequences and seq_len
-  restored_data = np.array(temp_data)
-
+  restored_data=[]
+  processed_data = processed_data[:, 0, :]
+  for i in range(num_sequences):
+    restored_data.append(processed_data[i][-1])
+  restored_data=np.array(restored_data)
   return restored_data
 
 
@@ -106,7 +103,7 @@ def sine_data_generation (no, seq_len, dim):
   return data
     
 
-def real_data_loading (data_name, seq_len):
+def real_data_loading (data_name, seq_len,target):
   """Load and preprocess real-world datasets.
   
   Args:
@@ -116,14 +113,19 @@ def real_data_loading (data_name, seq_len):
   Returns:
     - data: preprocessed data.
   """  
-  assert data_name in ['stock','energy']
+  # assert data_name in ['stock', 'energy','Walmart']
   
   if data_name == 'stock':
     ori_data = np.loadtxt('data/stock_data.csv', delimiter = ",",skiprows = 1)
   elif data_name == 'energy':
     ori_data = np.loadtxt('data/energy_data.csv', delimiter = ",",skiprows = 1)
+  else:
+    ori_data=pd.read_csv('data/' + data_name + '.csv')
+    ori_data=ori_data[[target]]
+    ori_data=np.asarray(ori_data)
         
   # Flip the data to make chronological data
+
   ori_data = ori_data[::-1]
   # Normalize the data
   ori_data = MinMaxScaler(ori_data)
@@ -140,5 +142,34 @@ def real_data_loading (data_name, seq_len):
   data = []
   for i in range(len(temp_data)):
     data.append(temp_data[idx[i]])
-    
   return data
+
+
+def real_data_loading2(data_name, seq_len, target):
+  """Load and preprocess real-world datasets.
+  加载数据集保持原有顺序
+  """
+  # assert data_name in ['stock', 'energy', 'Walmart','train']
+
+  if data_name == 'stock':
+    ori_data = np.loadtxt('data/stock_data.csv', delimiter=",", skiprows=1)
+  elif data_name == 'energy':
+    ori_data = np.loadtxt('data/energy_data.csv', delimiter=",", skiprows=1)
+  else:
+    ori_data = pd.read_csv('data/' + data_name + '.csv')
+
+    ori_data = ori_data[[target]]
+    ori_data = np.asarray(ori_data)
+
+
+  # Normalize the data
+  ori_data = MinMaxScaler(ori_data)
+
+  # Preprocess the dataset
+  temp_data = list()
+  # Cut data by sequence length
+  for i in range(0, len(ori_data) - seq_len):
+    _x = ori_data[i:i + seq_len]
+    temp_data.append(_x)
+
+  return temp_data

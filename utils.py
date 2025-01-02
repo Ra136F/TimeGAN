@@ -23,6 +23,7 @@ utils.py
 ## Necessary Packages
 import numpy as np
 import tensorflow as tf
+from matplotlib import pyplot as plt
 
 
 def train_test_divide (data_x, data_x_hat, data_t, data_t_hat, train_rate = 0.8):
@@ -144,3 +145,40 @@ def batch_generator(data, time, batch_size):
   T_mb = list(time[i] for i in train_idx)
   
   return X_mb, T_mb
+
+def calculate_rmse(y_true, y_pred):
+    """
+    计算均方根误差 (RMSE)
+    :param y_true: 真实值数组
+    :param y_pred: 预测值数组
+    :return: RMSE值
+    """
+    # 计算均方误差（MSE）并返回 RMSE
+    mse = np.mean((y_true - y_pred) ** 2)
+    rmse = np.sqrt(mse)
+    return rmse
+
+
+def calculate_mape(y_true, y_pred,mask):
+  """
+  计算平均绝对百分比误差 (MAPE)
+  :param y_true: 真实值数组
+  :param y_pred: 预测值数组
+  :return: MAPE值（百分比形式）
+  """
+  # 避免除以0的情况
+  mape = np.abs((y_true - y_pred) / (np.abs(y_true) + 1))
+  mape*=mask
+  non_zero_len = mask.sum()
+  return np.sum(mape)/non_zero_len
+
+def plottp(y_true, y_pred):
+  y_true=y_true[0:5000]
+  y_pred=y_pred[0:5000]
+  plt.figure(figsize=(14, 6))
+  plt.plot(y_true, label='TrueValue')
+  plt.plot(y_pred, label='Generation')
+  plt.title("对比")
+  plt.legend()
+  plt.show()
+

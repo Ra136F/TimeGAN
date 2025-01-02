@@ -15,6 +15,7 @@ timegan.py
 
 Note: Use original data as training set to generater synthetic data (time-series)
 """
+import time
 
 # Necessary Packages
 import tensorflow as tf
@@ -25,7 +26,7 @@ from utils import extract_time, rnn_cell, random_generator, batch_generator
 import os
 
 
-def timegan (ori_data, parameters,load_model,model_path,continued=False):
+def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   """TimeGAN function.
   
   Use original data as training set to generater synthetic data (time-series)
@@ -37,6 +38,8 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
   Returns:
     - generated_data: generated time-series data
   """
+  result_path=result_path+'/'+'time.txt'
+
   # Initialization on the Graph
   tf.compat.v1.reset_default_graph()
 
@@ -95,19 +98,22 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
     Returns:
       - H: embeddings
     """
-    with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
-      dilation_rates = [1, 2, 4, 8]
-      conv_outputs = X
-      for rate in dilation_rates:
-        conv_outputs = tf.compat.v1.layers.conv1d(
-          conv_outputs,
-          filters=hidden_dim,
-          kernel_size=3,
-          dilation_rate=rate,
-          padding="causal",
-          activation=tf.nn.relu
-        )
-      H = tf.compat.v1.layers.dense(conv_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
+    #   dilation_rates = [1, 2, 4, 8]
+    #   conv_outputs = X
+    #   for rate in dilation_rates:
+    #     conv_outputs = tf.compat.v1.layers.conv1d(
+    #       conv_outputs,
+    #       filters=hidden_dim,
+    #       kernel_size=3,
+    #       dilation_rate=rate,
+    #       padding="causal",
+    #       activation=tf.nn.relu
+    #     )
+    with tf.compat.v1.variable_scope("embedder", reuse = tf.compat.v1.AUTO_REUSE):
+      e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+      e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
+      H = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
     return H
 
 
@@ -121,10 +127,14 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
     Returns:
       - X_tilde: recovered data
     """
-    with tf.compat.v1.variable_scope("recovery", reuse=tf.compat.v1.AUTO_REUSE):
-      attention_scores = tf.nn.softmax(tf.matmul(H, tf.transpose(H, perm=[0, 2, 1])))
-      attention_outputs = tf.matmul(attention_scores, H)
-      X_tilde = tf.compat.v1.layers.dense(attention_outputs, dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("recovery", reuse=tf.compat.v1.AUTO_REUSE):
+    #   attention_scores = tf.nn.softmax(tf.matmul(H, tf.transpose(H, perm=[0, 2, 1])))
+    #   attention_outputs = tf.matmul(attention_scores, H)
+    #   X_tilde = tf.compat.v1.layers.dense(attention_outputs, dim, activation=tf.nn.sigmoid)
+    with tf.compat.v1.variable_scope("recovery", reuse = tf.compat.v1.AUTO_REUSE):
+        r_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+        r_outputs, r_last_states = tf.compat.v1.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
+        X_tilde = tf.compat.v1.layers.dense(r_outputs, dim, activation=tf.nn.sigmoid)
     return X_tilde
     
 
@@ -139,13 +149,17 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
     Returns:
       - E: generated embedding
     """
-    with tf.compat.v1.variable_scope("generator", reuse=tf.compat.v1.AUTO_REUSE):
-      forward_cell = tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim)
-      backward_cell = tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim)
-      outputs, _ = tf.compat.v1.nn.bidirectional_dynamic_rnn(forward_cell, backward_cell, Z, dtype=tf.float32,
-                                                             sequence_length=T)
-      outputs_concat = tf.concat(outputs, axis=-1)
-      E = tf.compat.v1.layers.dense(outputs_concat, hidden_dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("generator", reuse=tf.compat.v1.AUTO_REUSE):
+    #   forward_cell = tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim)
+    #   backward_cell = tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim)
+    #   outputs, _ = tf.compat.v1.nn.bidirectional_dynamic_rnn(forward_cell, backward_cell, Z, dtype=tf.float32,
+    #                                                          sequence_length=T)
+    #   outputs_concat = tf.concat(outputs, axis=-1)
+    #   E = tf.compat.v1.layers.dense(outputs_concat, hidden_dim, activation=tf.nn.sigmoid)
+    with tf.compat.v1.variable_scope("generator", reuse = tf.compat.v1.AUTO_REUSE):
+        e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+        e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, Z, dtype=tf.float32, sequence_length = T)
+        E = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
     return E
 
   def supervisor (H, T):
@@ -244,11 +258,13 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
   sess = tf.compat.v1.Session()
   sess.run(tf.compat.v1.global_variables_initializer())
   #
-  if load_model  and os.path.exists(model_path + ".meta"):
-    print(f"Loading model from {model_path}...")
-    saver.restore(sess, model_path)
-    print(f"Model restored from {model_path}")
-  if continued or load_model==False :
+  # if load_model  and os.path.exists(model_path + ".meta"):
+  #   print(f"Loading model from {model_path}...")
+  #   saver.restore(sess, model_path)
+  #   print(f"Model restored from {model_path}")
+  model_path=model_path+'/'+'model'
+  if train :
+    start_train=time.time()
     print('未检测到模型或者继续训练模型')
     # 1. Embedding network training
     print('Start Embedding Network Training')
@@ -319,9 +335,19 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
       print(f"Saving model to {model_path}...")
       saver.save(sess, model_path)
       print(f"Model saved at {model_path}")
+    end_train=time.time()
+    train_time=end_train-start_train
+    print(f">>>>>>>>>>>>>>>>>>>>>>模型已保存,用时:{train_time / 60:.4f} min<<<<<<<<<<<<<<<<<<")
+    with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
+      file.write(f"模型已保存,用时:{train_time / 60:.4f} min")  # 每个结果之间换行
+  else:
+    print(f"Loading model from {model_path}...")
+    saver.restore(sess, model_path)
+    print(f"Model restored from {model_path}")
     
   ## Synthetic data generation
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
+  start_gen=time.time()
   generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})    
     
   generated_data = list()
@@ -333,5 +359,9 @@ def timegan (ori_data, parameters,load_model,model_path,continued=False):
   # Renormalization
   generated_data = generated_data * max_val
   generated_data = generated_data + min_val
-    
+  end_gen=time.time()
+  gen_time=end_gen-start_gen
+  print(f">>>>>>>>>>>>>>>>>>>>>>模型生成时间:{gen_time :.4f} s<<<<<<<<<<<<<<<<<<")
+  with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
+    file.write(f"模型生成时间:{gen_time :.4f} s")  # 每个结果之间换行
   return generated_data

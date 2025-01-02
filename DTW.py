@@ -29,3 +29,32 @@ def compute_dtw_distance(sequence_1, sequence_2):
 
 
 
+import numpy as np
+
+
+def calculate_rmse(y_true, y_pred):
+    """
+    计算两个序列的 RMSE (Root Mean Square Error)
+
+    参数：
+    y_true -- 真实值序列
+    y_pred -- 预测值序列
+
+    返回：
+    RMSE值
+    """
+    if len(y_true) != len(y_pred):
+        raise ValueError("两个序列的长度必须相同")
+
+    # 计算误差平方和
+    squared_errors = [(y_true[i] - y_pred[i]) ** 2 for i in range(len(y_true))]
+
+    # 计算均方根误差
+    rmse = np.sqrt(np.mean(squared_errors))
+    return rmse
+
+
+
+
+
+
