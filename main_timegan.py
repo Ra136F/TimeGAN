@@ -70,7 +70,7 @@ def main (args):
   ## Data loading
   ori_data=[]
   if args.data_name !='sine':
-    ori_data = real_data_loading(args.data_name, args.seq_len,args.target)
+    ori_data = real_data_loading(args.data_name, args.seq_len,args.target,args.feature)
   elif args.data_name == 'sine':
     # Set number of samples and its dimensions
     no, dim = 10000, 5
@@ -110,30 +110,30 @@ def main (args):
   
   # Performance metrics
   # Output initialization
-  metric_results = dict()
+  # metric_results = dict()
+  #
+  # # 1. Discriminative Score
+  # discriminative_score = list()
+  # for _ in range(args.metric_iteration):
+  #   temp_disc = discriminative_score_metrics(ori_data, generated_data)
+  #   discriminative_score.append(temp_disc)
+  #
+  # metric_results['discriminative'] = np.mean(discriminative_score)
+  #
+  # # 2. Predictive score
+  # predictive_score = list()
+  # for tt in range(args.metric_iteration):
+  #   temp_pred = predictive_score_metrics(ori_data, generated_data)
+  #   predictive_score.append(temp_pred)
+  #
+  # metric_results['predictive'] = np.mean(predictive_score)
 
-  # 1. Discriminative Score
-  discriminative_score = list()
-  for _ in range(args.metric_iteration):
-    temp_disc = discriminative_score_metrics(ori_data, generated_data)
-    discriminative_score.append(temp_disc)
-
-  metric_results['discriminative'] = np.mean(discriminative_score)
-
-  # 2. Predictive score
-  predictive_score = list()
-  for tt in range(args.metric_iteration):
-    temp_pred = predictive_score_metrics(ori_data, generated_data)
-    predictive_score.append(temp_pred)
-
-  metric_results['predictive'] = np.mean(predictive_score)
-          
   # 3. Visualization (PCA and tSNE)
   visualization(ori_data, generated_data, 'pca')
   visualization(ori_data, generated_data, 'tsne')
-  
+
   ## Print discriminative and predictive scores
-  print(metric_results)
+  # print(metric_results)
 
   return ori_data, generated_data
 
@@ -187,7 +187,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=5000,
+      default=10000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -211,6 +211,7 @@ if __name__ == '__main__':
       '--target',
       default='Sales',
       type=str)
+  parser.add_argument('-feature', type=str, default='S', help='[S, MS],单元预测单元,多元预测单元')
   
   args = parser.parse_args() 
   
@@ -218,9 +219,9 @@ if __name__ == '__main__':
   ori_data, generated_data = main(args)
   #三维转二维数组
   gen_data=restore_data(generated_data,args.seq_len)
-  print(len(gen_data))
   #重新加载真实数据
-  true_data=real_data_loading2(args.data_name, args.seq_len,args.target)
+  true_data=real_data_loading2(args.data_name, args.seq_len,args.target,args.feature)
+  # true_data=np.asarray(ori_data)
   true_data=np.array(true_data)
   true_data = restore_data(true_data, args.seq_len)
   real_y_true_mask = (1 - (true_data == 0))
@@ -228,5 +229,6 @@ if __name__ == '__main__':
   mape=calculate_mape(true_data, gen_data, real_y_true_mask)
   print(f"RMSE: {rmse}")
   print(f"MAPE: {mape}")
-  plottp(true_data,gen_data)
+  # 绘图
+  plottp(true_data,gen_data,args.data_name)
 

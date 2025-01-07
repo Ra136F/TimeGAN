@@ -44,9 +44,11 @@ def restore_data(processed_data, seq_len):
   assert all(len(seq) == seq_len for seq in processed_data), "All sequences should have length equal to seq_len"
   restored_data=[]
   processed_data = processed_data[:, 0, :]
+
   for i in range(num_sequences):
     restored_data.append(processed_data[i][-1])
   restored_data=np.array(restored_data)
+  print(restored_data.shape)
   return restored_data
 
 
@@ -103,7 +105,7 @@ def sine_data_generation (no, seq_len, dim):
   return data
     
 
-def real_data_loading (data_name, seq_len,target):
+def real_data_loading (data_name, seq_len,target,feature):
   """Load and preprocess real-world datasets.
   
   Args:
@@ -116,16 +118,30 @@ def real_data_loading (data_name, seq_len,target):
   # assert data_name in ['stock', 'energy','Walmart']
   
   if data_name == 'stock':
-    ori_data = np.loadtxt('data/stock_data.csv', delimiter = ",",skiprows = 1)
+    # ori_data = np.loadtxt('data/stock_data.csv', delimiter = ",",skiprows = 1)
+    ori_data = pd.read_csv('data/' + data_name + '_data.csv')
+    cols = list(ori_data.columns)
+    cols.remove(target)
+    ori_data = ori_data[cols + [target]]
   elif data_name == 'energy':
-    ori_data = np.loadtxt('data/energy_data.csv', delimiter = ",",skiprows = 1)
+    # ori_data = np.loadtxt('data/energy_data.csv', delimiter = ",",skiprows = 1)
+    ori_data = pd.read_csv('data/' + data_name + '_data.csv')
+    cols = list(ori_data.columns)
+    cols.remove(target)
+    ori_data = ori_data[cols + [target]]
   else:
     ori_data=pd.read_csv('data/' + data_name + '.csv')
-    ori_data=ori_data[[target]]
-    ori_data=np.asarray(ori_data)
+    if feature == 'S':
+      ori_data=ori_data[[target]]
+    else:
+      cols = list(ori_data.columns)
+      cols.remove(target)
+      cols.remove('date')
+      ori_data = ori_data[cols + [target]]
+
         
   # Flip the data to make chronological data
-
+  ori_data = np.asarray(ori_data)
   ori_data = ori_data[::-1]
   # Normalize the data
   ori_data = MinMaxScaler(ori_data)
@@ -145,23 +161,32 @@ def real_data_loading (data_name, seq_len,target):
   return data
 
 
-def real_data_loading2(data_name, seq_len, target):
+def real_data_loading2(data_name, seq_len, target,feature):
   """Load and preprocess real-world datasets.
   加载数据集保持原有顺序
   """
   # assert data_name in ['stock', 'energy', 'Walmart','train']
 
   if data_name == 'stock':
-    ori_data = np.loadtxt('data/stock_data.csv', delimiter=",", skiprows=1)
+    ori_data = pd.read_csv('data/' + data_name + '_data.csv')
+    cols = list(ori_data.columns)
+    cols.remove(target)
+    ori_data = ori_data[cols + [target]]
   elif data_name == 'energy':
-    ori_data = np.loadtxt('data/energy_data.csv', delimiter=",", skiprows=1)
+    ori_data = pd.read_csv('data/' + data_name + '_data.csv')
+    cols = list(ori_data.columns)
+    cols.remove(target)
+    ori_data = ori_data[cols + [target]]
   else:
     ori_data = pd.read_csv('data/' + data_name + '.csv')
-
-    ori_data = ori_data[[target]]
-    ori_data = np.asarray(ori_data)
-
-
+    if feature == 'S':
+      ori_data=ori_data[[target]]
+    else:
+      cols = list(ori_data.columns)
+      cols.remove(target)
+      cols.remove('date')
+      ori_data = ori_data[cols + [target]]
+  ori_data = np.asarray(ori_data)
   # Normalize the data
   ori_data = MinMaxScaler(ori_data)
 

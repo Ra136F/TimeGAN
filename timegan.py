@@ -19,6 +19,9 @@ import time
 
 # Necessary Packages
 import tensorflow as tf
+
+from TimeGAN.data_loading import real_data_loading2
+
 tf.compat.v1.disable_eager_execution()
 
 import numpy as np
@@ -348,6 +351,7 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   ## Synthetic data generation
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
   start_gen=time.time()
+  ori_data=real_data_loading2('train', 24,'Sales','S')
   generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})    
     
   generated_data = list()

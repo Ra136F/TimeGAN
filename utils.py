@@ -172,13 +172,16 @@ def calculate_mape(y_true, y_pred,mask):
   non_zero_len = mask.sum()
   return np.sum(mape)/non_zero_len
 
-def plottp(y_true, y_pred):
-  y_true=y_true[0:5000]
-  y_pred=y_pred[0:5000]
+def plottp(y_true, y_pred,data_name):
+  y_true=y_true[-1000:]
+  y_pred=y_pred[-1000:]
   plt.figure(figsize=(14, 6))
   plt.plot(y_true, label='TrueValue')
   plt.plot(y_pred, label='Generation')
   plt.title("对比")
   plt.legend()
+  plt.savefig('./image/{}.png'.format(data_name))
   plt.show()
+
+
 
