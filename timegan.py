@@ -265,7 +265,7 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   #   print(f"Loading model from {model_path}...")
   #   saver.restore(sess, model_path)
   #   print(f"Model restored from {model_path}")
-  model_path=model_path+'/'+'model'
+
   if train :
     start_train=time.time()
     print('未检测到模型或者继续训练模型')
@@ -351,7 +351,7 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   ## Synthetic data generation
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
   start_gen=time.time()
-  ori_data=real_data_loading2('train', 24,'Sales','S')
+  # ori_data=real_data_loading2('train', 24,'Sales','S')
   generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})    
     
   generated_data = list()

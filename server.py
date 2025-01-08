@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 from flask import Flask, request, jsonify
 import pandas as pd
@@ -31,12 +32,27 @@ def upload_data():
 
         # 可以在这里对数据进行处理，例如保存到文件或数据库
         # 保存为 CSV 文件
-        data_path=os.path.join('./data',data_name)
-        if not os.path.exists(data_path):
-            os.makedirs(data_path)
-        f_data_name=data_path+'/'+data_name+'.csv'
-        df.to_csv(f_data_name, index=False)
-        print(f"数据已保存为 {f_data_name}")
+        data_path='./ori_data/'+data_name+'.csv'
+        df.to_csv(data_path, index=False)
+        print(f"数据已保存为 {data_name}")
+
+        # print("启动 TimeGAN 训练...")
+        # s_data_name=data_name+'/'+data_name
+        # subprocess.run([
+        #     "python", "main_timegan.py",
+        #     "--data_name", s_data_name,
+        #     "--seq_len", "24",
+        #     "--module", "gru",
+        #     "--hidden_dim", "24",
+        #     "--num_layer", "3",
+        #     "--iteration", "1000",
+        #     "--batch_size", "128",
+        #     "--train", "True",
+        #     "--model_path", "./save_model/",
+        #     "--target", target,
+        #     "--feature", "S"
+        # ], check=True)
+        # print("TimeGAN 训练完成")
 
         # 返回成功响应
         return jsonify({"message": "Data received successfully", "row_count": len(df)}), 200

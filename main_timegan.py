@@ -32,7 +32,7 @@ import warnings
 import pandas as pd
 
 from TimeGAN.DTW import compute_dtw_distance
-from utils import extract_time, random_generator, calculate_rmse, calculate_mape, plottp
+from utils import extract_time, random_generator, calculate_rmse, calculate_mape, plottp, dtw_distance
 
 warnings.filterwarnings("ignore")
 
@@ -89,13 +89,14 @@ def main (args):
   parameters['batch_size'] = args.batch_size
 
   #加载模型
-  model_name='data-{}'.format(args.data_name)
-  model_path=os.path.join(args.model_path, model_name)
-  result_path=os.path.join('./result/', model_name)
+  save_name='data-{}'.format(args.data_name)
+  model_path=os.path.join(args.model_path, save_name)
+  result_path=os.path.join('./result/',save_name)
   if not os.path.exists(model_path):
       os.makedirs(model_path)
   if not os.path.exists(result_path):
       os.makedirs(result_path)
+  model_path=model_path+'/'+args.model_name
   # if os.path.exists(model_path + ".meta"):
   #     print(f"Model found at {model_path}, loading the model.")
   #     load_model = True
@@ -162,7 +163,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--data_name',
       choices=['sine','stock','energy','Walmart','train'],
-      default='train',
+      default='oil-well',
       type=str)
   parser.add_argument(
       '--seq_len',
@@ -187,7 +188,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=10000,
+      default=5000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -208,8 +209,12 @@ if __name__ == '__main__':
       default='./save_model/',
       type=str)
   parser.add_argument(
+      '--model_name',
+      default='model',
+      type=str)
+  parser.add_argument(
       '--target',
-      default='Sales',
+      default='P-TPT',
       type=str)
   parser.add_argument('-feature', type=str, default='S', help='[S, MS],单元预测单元,多元预测单元')
   
@@ -231,4 +236,6 @@ if __name__ == '__main__':
   print(f"MAPE: {mape}")
   # 绘图
   plottp(true_data,gen_data,args.data_name)
+  distance=dtw_distance(true_data,gen_data)
+  print(f"DTW 距离: {distance}")
 
