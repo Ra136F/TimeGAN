@@ -26,6 +26,37 @@ import tensorflow as tf
 from matplotlib import pyplot as plt
 
 
+def calculate_metrics(y_true, y_pred):
+  """
+  计算 SMAPE, RMSE 和 MAPE
+  参数:
+  y_true -- 真实值数组
+  y_pred -- 预测值数组
+
+  返回:
+  smape -- 对称平均绝对百分比误差
+  rmse -- 均方根误差
+  mape -- 平均绝对百分比误差
+  """
+  # 转换为 numpy 数组
+  y_true = np.array(y_true)
+  y_pred = np.array(y_pred)
+
+  # 防止除以零
+  epsilon = 1e-10  # 一个很小的数值，避免除以零
+
+  # SMAPE 计算
+  smape = 100 * np.mean(2 * np.abs(y_pred - y_true) / (np.abs(y_true) + np.abs(y_pred) + epsilon))
+
+  # RMSE 计算
+  rmse = np.sqrt(np.mean((y_pred - y_true) ** 2))
+
+  # MAPE 计算
+  mape_mask = y_true != 0  # 去掉 y_true == 0 的数据点
+  mape = np.mean(np.abs((y_true[mape_mask] - y_pred[mape_mask]) / y_true[mape_mask])) * 100
+
+  return smape, rmse, mape
+
 def dtw_distance(seq1, seq2):
   """
   计算两个序列之间的 DTW 距离
@@ -147,10 +178,11 @@ def random_generator (batch_size, z_dim, T_mb, max_seq_len):
     - Z_mb: generated random vector
   """
   Z_mb = list()
+
   for i in range(batch_size):
     temp = np.zeros([max_seq_len, z_dim])
-    temp_Z = np.random.uniform(0., 1, [T_mb[i], z_dim])
-    temp[:T_mb[i],:] = temp_Z
+    temp_Z = np.random.uniform(0., 1, [T_mb[0], z_dim])
+    temp[:T_mb[0],:] = temp_Z
     Z_mb.append(temp_Z)
   return Z_mb
 
@@ -203,15 +235,15 @@ def calculate_mape(y_true, y_pred,mask):
   return np.sum(mape)/non_zero_len
 
 def plottp(y_true, y_pred,data_name):
-  y_true=y_true[-1000:]
-  y_pred=y_pred[-1000:]
-  plt.figure(figsize=(14, 7))
+  # y_true=y_true[-1000:]
+  # y_pred=y_pred[-1000:]
+  plt.figure(figsize=(14, 6))
   plt.plot(y_true, label='TrueValue')
   plt.plot(y_pred, label='Generation')
-  plt.title("对比")
+  plt.title("real vs generation")
   plt.legend()
   plt.savefig('./image/{}.png'.format(data_name))
-  plt.show()
+  # plt.show()
 
 
 

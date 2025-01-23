@@ -32,7 +32,8 @@ import warnings
 import pandas as pd
 
 from TimeGAN.DTW import compute_dtw_distance
-from utils import extract_time, random_generator, calculate_rmse, calculate_mape, plottp, dtw_distance
+from utils import extract_time, random_generator, calculate_rmse, calculate_mape, plottp, dtw_distance, \
+    calculate_metrics
 
 warnings.filterwarnings("ignore")
 
@@ -70,7 +71,7 @@ def main (args):
   ## Data loading
   ori_data=[]
   if args.data_name !='sine':
-    ori_data = real_data_loading(args.data_name, args.seq_len,args.target,args.feature)
+    ori_data,min,max = real_data_loading(args.data_name, args.seq_len,args.target,args.feature)
   elif args.data_name == 'sine':
     # Set number of samples and its dimensions
     no, dim = 10000, 5
@@ -130,8 +131,8 @@ def main (args):
   # metric_results['predictive'] = np.mean(predictive_score)
 
   # 3. Visualization (PCA and tSNE)
-  visualization(ori_data, generated_data, 'pca')
-  visualization(ori_data, generated_data, 'tsne')
+  # visualization(ori_data, generated_data, 'pca')
+  # visualization(ori_data, generated_data, 'tsne')
 
   ## Print discriminative and predictive scores
   # print(metric_results)
@@ -163,7 +164,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--data_name',
       choices=['sine','stock','energy','Walmart','train'],
-      default='oil-well',
+      default='Walmart',
       type=str)
   parser.add_argument(
       '--seq_len',
@@ -188,7 +189,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=5000,
+      default=20,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -202,7 +203,7 @@ if __name__ == '__main__':
       type=int)
   parser.add_argument(
       '--train',
-      default=True,
+      default=False,
       type=bool)
   parser.add_argument(
       '--model_path',
@@ -214,7 +215,7 @@ if __name__ == '__main__':
       type=str)
   parser.add_argument(
       '--target',
-      default='P-TPT',
+      default='Weekly_Sales',
       type=str)
   parser.add_argument('-feature', type=str, default='S', help='[S, MS],单元预测单元,多元预测单元')
   
@@ -222,20 +223,23 @@ if __name__ == '__main__':
   
   # Calls main function  
   ori_data, generated_data = main(args)
+  true_data, min, max = real_data_loading2(args.data_name, args.seq_len, args.target, args.feature)
   #三维转二维数组
-  gen_data=restore_data(generated_data,args.seq_len)
+  gen_data=restore_data(generated_data,args.seq_len,min,max)
   #重新加载真实数据
-  true_data=real_data_loading2(args.data_name, args.seq_len,args.target,args.feature)
+
   # true_data=np.asarray(ori_data)
   true_data=np.array(true_data)
-  true_data = restore_data(true_data, args.seq_len)
-  real_y_true_mask = (1 - (true_data == 0))
-  rmse=calculate_rmse(true_data, gen_data)
-  mape=calculate_mape(true_data, gen_data, real_y_true_mask)
+  true_data = restore_data(true_data, args.seq_len,min,max)
+  # real_y_true_mask = (1 - (true_data == 0))
+  # rmse=calculate_rmse(true_data, gen_data)
+  # mape=calculate_mape(true_data, gen_data, real_y_true_mask)
+  smape, rmse, mape = calculate_metrics(true_data, gen_data)
   print(f"RMSE: {rmse}")
   print(f"MAPE: {mape}")
+  print(f'smape:{smape}')
   # 绘图
   plottp(true_data,gen_data,args.data_name)
-  distance=dtw_distance(true_data,gen_data)
-  print(f"DTW 距离: {distance}")
+  # distance=dtw_distance(true_data,gen_data)
+  # print(f"DTW 距离: {distance}")
 

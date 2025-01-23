@@ -352,7 +352,10 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   Z_mb = random_generator(no, z_dim, ori_time, max_seq_len)
   start_gen=time.time()
   # ori_data=real_data_loading2('train', 24,'Sales','S')
-  generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})    
+  # for i in range(no):
+  #   ori_time.append(24)
+  generated_data_curr = sess.run(X_hat, feed_dict={Z: Z_mb, X: ori_data, T: ori_time})
+  print(len(generated_data_curr))
     
   generated_data = list()
     

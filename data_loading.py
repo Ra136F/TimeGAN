@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 
 
-def restore_data(processed_data, seq_len):
+def restore_data(processed_data, seq_len,min,max):
   """
   Restore the processed data (after real_data_loading) back to its original form.
 
@@ -48,6 +48,7 @@ def restore_data(processed_data, seq_len):
   for i in range(num_sequences):
     restored_data.append(processed_data[i][-1])
   restored_data=np.array(restored_data)
+  restored_data =restored_data * (max - min + 1e-7) + min
   print(restored_data.shape)
   return restored_data
 
@@ -64,7 +65,7 @@ def MinMaxScaler(data):
   numerator = data - np.min(data, 0)
   denominator = np.max(data, 0) - np.min(data, 0)
   norm_data = numerator / (denominator + 1e-7)
-  return norm_data
+  return norm_data,np.min(data, 0),np.max(data, 0)
 
 
 def sine_data_generation (no, seq_len, dim):
@@ -143,8 +144,9 @@ def real_data_loading (data_name, seq_len,target,feature):
   # Flip the data to make chronological data
   ori_data = np.asarray(ori_data)
   ori_data = ori_data[::-1]
+  ori_data=ori_data[:int(0.05*len(ori_data))]
   # Normalize the data
-  ori_data = MinMaxScaler(ori_data)
+  ori_data,min,max = MinMaxScaler(ori_data)
     
   # Preprocess the dataset
   temp_data = []    
@@ -158,7 +160,8 @@ def real_data_loading (data_name, seq_len,target,feature):
   data = []
   for i in range(len(temp_data)):
     data.append(temp_data[idx[i]])
-  return data
+
+  return data,min,max
 
 
 def real_data_loading2(data_name, seq_len, target,feature):
@@ -187,8 +190,10 @@ def real_data_loading2(data_name, seq_len, target,feature):
       cols.remove('date')
       ori_data = ori_data[cols + [target]]
   ori_data = np.asarray(ori_data)
+  ori_data = ori_data[:int(0.05*len(ori_data))]
+
   # Normalize the data
-  ori_data = MinMaxScaler(ori_data)
+  ori_data,min,max = MinMaxScaler(ori_data)
 
   # Preprocess the dataset
   temp_data = list()
@@ -197,4 +202,4 @@ def real_data_loading2(data_name, seq_len, target,feature):
     _x = ori_data[i:i + seq_len]
     temp_data.append(_x)
 
-  return temp_data
+  return temp_data,min,max
