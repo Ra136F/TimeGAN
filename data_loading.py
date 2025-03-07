@@ -44,12 +44,12 @@ def restore_data(processed_data, seq_len,min,max):
   assert all(len(seq) == seq_len for seq in processed_data), "All sequences should have length equal to seq_len"
   restored_data=[]
   processed_data = processed_data[:, 0, :]
-
   for i in range(num_sequences):
     restored_data.append(processed_data[i][-1])
   restored_data=np.array(restored_data)
-  restored_data =restored_data * (max - min + 1e-7) + min
-  print(restored_data.shape)
+  # print(f"max：{len(max)},min:{len(min)}")
+  # print(restored_data.shape)
+  # restored_data =restored_data * (max - min + 1e-7) + min
   return restored_data
 
 
@@ -144,7 +144,7 @@ def real_data_loading (data_name, seq_len,target,feature):
   # Flip the data to make chronological data
   ori_data = np.asarray(ori_data)
   ori_data = ori_data[::-1]
-  ori_data=ori_data[:int(0.05*len(ori_data))]
+  # ori_data=ori_data[:int(0.05*len(ori_data))]
   # Normalize the data
   ori_data,min,max = MinMaxScaler(ori_data)
     
@@ -190,7 +190,7 @@ def real_data_loading2(data_name, seq_len, target,feature):
       cols.remove('date')
       ori_data = ori_data[cols + [target]]
   ori_data = np.asarray(ori_data)
-  ori_data = ori_data[:int(0.05*len(ori_data))]
+  # ori_data = ori_data[:int(0.05*len(ori_data))]
 
   # Normalize the data
   ori_data,min,max = MinMaxScaler(ori_data)

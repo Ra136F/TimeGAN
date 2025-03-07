@@ -90,6 +90,27 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   Z = tf.compat.v1.placeholder(tf.float32, [None, max_seq_len, z_dim], name = "myinput_z")
   T = tf.compat.v1.placeholder(tf.int32, [None], name = "myinput_t")
 
+  def dilated_causal_conv1d(X, hidden_dim, kernel_size, dilation_rate, scope):
+    """扩张因果卷积（Dilated Causal Convolution）"""
+    with tf.compat.v1.variable_scope(scope, reuse=tf.compat.v1.AUTO_REUSE):
+      # 计算填充大小，确保因果性
+      pad_size = (kernel_size - 1) * dilation_rate
+      X_padded = tf.pad(X, [[0, 0], [pad_size, 0], [0, 0]])  # 只在左侧填充
+      # 创建卷积核 (kernel_size, input_dim, filters)
+      input_dim = X.shape[-1]
+      W = tf.compat.v1.get_variable(
+        name=f"W_dilated_{dilation_rate}",
+        shape=[kernel_size, input_dim, hidden_dim],
+        initializer=tf.compat.v1.truncated_normal_initializer(stddev=0.02)
+      )
+      b = tf.compat.v1.get_variable(
+        name=f"b_dilated_{dilation_rate}",
+        shape=[hidden_dim],
+        initializer=tf.compat.v1.zeros_initializer()
+      )
+      # 进行 1D 卷积
+      conv_out = tf.nn.conv1d(X_padded, W, stride=1, padding="VALID", dilations=dilation_rate) + b
+    return tf.nn.relu(conv_out)  # ReLU 激活
 
   def embedder(X, T):
     """Embedding network between original feature space to latent space using DCCN.
@@ -101,22 +122,45 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     Returns:
       - H: embeddings
     """
+    dilation_rates = [1, 2,4, 8]
+    kernel_size = 3
+    #1
+    with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
+      dilation_rates = [1, 2, 4, 8]
+      conv_outputs = X
+      for rate in dilation_rates:
+        conv_outputs = tf.compat.v1.layers.conv1d(
+          conv_outputs,
+          filters=hidden_dim,
+          kernel_size=3,
+          dilation_rate=rate,
+          padding="causal",
+          activation=tf.nn.relu
+        )
+      H = tf.compat.v1.layers.dense(conv_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    #2
+    # with tf.compat.v1.variable_scope("embedder", reuse = tf.compat.v1.AUTO_REUSE):
+    #   e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+    #   e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
+    #   H = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    #3
     # with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
-    #   dilation_rates = [1, 2, 4, 8]
-    #   conv_outputs = X
+    #   conv_outputs = X  # 初始输入
     #   for rate in dilation_rates:
-    #     conv_outputs = tf.compat.v1.layers.conv1d(
-    #       conv_outputs,
-    #       filters=hidden_dim,
-    #       kernel_size=3,
-    #       dilation_rate=rate,
-    #       padding="causal",
-    #       activation=tf.nn.relu
-    #     )
-    with tf.compat.v1.variable_scope("embedder", reuse = tf.compat.v1.AUTO_REUSE):
-      e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-      e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
-      H = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    #     conv_outputs = dilated_causal_conv1d(conv_outputs, hidden_dim, kernel_size, rate, scope="conv_layer")
+    #
+    #   # 最终投影到潜在空间
+    #   W_proj = tf.compat.v1.get_variable(
+    #     name="W_proj",
+    #     shape=[hidden_dim, hidden_dim],
+    #     initializer=tf.compat.v1.truncated_normal_initializer(stddev=0.02)
+    #   )
+    #   b_proj = tf.compat.v1.get_variable(
+    #     name="b_proj",
+    #     shape=[hidden_dim],
+    #     initializer=tf.compat.v1.zeros_initializer()
+    #   )
+    #   H = tf.nn.sigmoid(tf.tensordot(conv_outputs, W_proj, axes=[-1, 0]) + b_proj)  # 矩阵运算代替 matmul
     return H
 
 
@@ -134,10 +178,29 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     #   attention_scores = tf.nn.softmax(tf.matmul(H, tf.transpose(H, perm=[0, 2, 1])))
     #   attention_outputs = tf.matmul(attention_scores, H)
     #   X_tilde = tf.compat.v1.layers.dense(attention_outputs, dim, activation=tf.nn.sigmoid)
-    with tf.compat.v1.variable_scope("recovery", reuse = tf.compat.v1.AUTO_REUSE):
-        r_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-        r_outputs, r_last_states = tf.compat.v1.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
-        X_tilde = tf.compat.v1.layers.dense(r_outputs, dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("recovery", reuse = tf.compat.v1.AUTO_REUSE):
+    #     r_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+    #     r_outputs, r_last_states = tf.compat.v1.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
+    #     X_tilde = tf.compat.v1.layers.dense(r_outputs, dim, activation=tf.nn.sigmoid)
+
+    with tf.compat.v1.variable_scope("recovery", reuse=tf.compat.v1.AUTO_REUSE):
+      # 1. 双向 RNN 作为编码器
+      encoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
+      encoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(encoder_cells)
+      encoder_outputs, encoder_final_state = tf.compat.v1.nn.dynamic_rnn(
+        encoder_cell, H, dtype=tf.float32, sequence_length=T
+      )
+      # 2. 注意力层计算权重
+      attention_layer = tf.keras.layers.Attention()
+      context_vector = attention_layer([encoder_outputs, encoder_outputs])  # 自注意力
+      # 3. 解码器：使用带注意力的 RNN
+      decoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
+      decoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(decoder_cells)
+      decoder_outputs, _ = tf.compat.v1.nn.dynamic_rnn(
+        decoder_cell, context_vector, dtype=tf.float32, sequence_length=T
+      )
+      # 4. 全连接层投影回原始数据维度
+      X_tilde = tf.compat.v1.layers.dense(decoder_outputs, dim, activation=tf.nn.sigmoid)
     return X_tilde
     
 

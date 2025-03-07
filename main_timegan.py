@@ -164,7 +164,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--data_name',
       choices=['sine','stock','energy','Walmart','train'],
-      default='Walmart',
+      default='energy',
       type=str)
   parser.add_argument(
       '--seq_len',
@@ -189,7 +189,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=20,
+      default=5000,
       type=int)
   parser.add_argument(
       '--batch_size',
@@ -203,7 +203,7 @@ if __name__ == '__main__':
       type=int)
   parser.add_argument(
       '--train',
-      default=False,
+      default=True,
       type=bool)
   parser.add_argument(
       '--model_path',
@@ -215,7 +215,7 @@ if __name__ == '__main__':
       type=str)
   parser.add_argument(
       '--target',
-      default='Weekly_Sales',
+      default='Appliances',
       type=str)
   parser.add_argument('-feature', type=str, default='S', help='[S, MS],单元预测单元,多元预测单元')
   
@@ -240,6 +240,6 @@ if __name__ == '__main__':
   print(f'smape:{smape}')
   # 绘图
   plottp(true_data,gen_data,args.data_name)
-  # distance=dtw_distance(true_data,gen_data)
-  # print(f"DTW 距离: {distance}")
+  distance=dtw_distance(true_data,gen_data)
+  print(f"DTW 距离: {distance}")
 

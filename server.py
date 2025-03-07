@@ -36,23 +36,23 @@ def upload_data():
         df.to_csv(data_path, index=False)
         print(f"数据已保存为 {data_name}")
 
-        # print("启动 TimeGAN 训练...")
-        # s_data_name=data_name+'/'+data_name
-        # subprocess.run([
-        #     "python", "main_timegan.py",
-        #     "--data_name", s_data_name,
-        #     "--seq_len", "24",
-        #     "--module", "gru",
-        #     "--hidden_dim", "24",
-        #     "--num_layer", "3",
-        #     "--iteration", "1000",
-        #     "--batch_size", "128",
-        #     "--train", "True",
-        #     "--model_path", "./save_model/",
-        #     "--target", target,
-        #     "--feature", "S"
-        # ], check=True)
-        # print("TimeGAN 训练完成")
+        print("启动 TimeGAN 训练...")
+        s_data_name=data_name+'/'+data_name
+        subprocess.run([
+            "python", "main_timegan.py",
+            "--data_name", s_data_name,
+            "--seq_len", "24",
+            "--module", "gru",
+            "--hidden_dim", "24",
+            "--num_layer", "3",
+            "--iteration", "1000",
+            "--batch_size", "128",
+            "--train", "True",
+            "--model_path", "./save_model/",
+            "--target", target,
+            "--feature", "S"
+        ], check=True)
+        print("TimeGAN 训练完成")
 
         # 返回成功响应
         return jsonify({"message": "Data received successfully", "row_count": len(df)}), 200
