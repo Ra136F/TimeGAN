@@ -238,7 +238,7 @@ if __name__ == '__main__':
   print(f"MAPE: {mape}")
   print(f'smape:{smape}')
   # 绘图
-  plottp(true_data,gen_data,args.data_name)
+  plottp(true_data,gen_data,args.data_name,args.iteration)
   #计算DTW
   distance=dtw_distance(true_data,gen_data)
   print(f"DTW 距离: {distance}")

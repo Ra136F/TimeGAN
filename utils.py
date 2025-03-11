@@ -234,7 +234,7 @@ def calculate_mape(y_true, y_pred,mask):
   non_zero_len = mask.sum()
   return np.sum(mape)/non_zero_len
 
-def plottp(y_true, y_pred,data_name):
+def plottp(y_true, y_pred,data_name,iteration):
   # y_true=y_true[-1000:]
   # y_pred=y_pred[-1000:]
   plt.figure(figsize=(14, 6))
@@ -242,7 +242,7 @@ def plottp(y_true, y_pred,data_name):
   plt.plot(y_pred, label='Generation')
   plt.title("real vs generation")
   plt.legend()
-  plt.savefig('./image/{}.png'.format(data_name))
+  plt.savefig(f'./image/{data_name}-{iteration}.png')
   # plt.show()
 
 
