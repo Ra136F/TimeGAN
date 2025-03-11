@@ -22,7 +22,6 @@ import tensorflow as tf
 
 from TimeGAN.data_loading import real_data_loading2
 
-tf.compat.v1.disable_eager_execution()
 
 import numpy as np
 from utils import extract_time, rnn_cell, random_generator, batch_generator
@@ -44,7 +43,7 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   result_path=result_path+'/'+'time.txt'
 
   # Initialization on the Graph
-  tf.compat.v1.reset_default_graph()
+  tf.reset_default_graph()
 
   # Basic Parameters
   no, seq_len, dim = np.asarray(ori_data).shape
@@ -86,9 +85,9 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   gamma        = 1
     
   # Input place holders
-  X = tf.compat.v1.placeholder(tf.float32, [None, max_seq_len, dim], name = "myinput_x")
-  Z = tf.compat.v1.placeholder(tf.float32, [None, max_seq_len, z_dim], name = "myinput_z")
-  T = tf.compat.v1.placeholder(tf.int32, [None], name = "myinput_t")
+  X = tf.placeholder(tf.float32, [None, max_seq_len, dim], name = "myinput_x")
+  Z = tf.placeholder(tf.float32, [None, max_seq_len, z_dim], name = "myinput_z")
+  T = tf.placeholder(tf.int32, [None], name = "myinput_t")
 
   def dilated_causal_conv1d(X, hidden_dim, kernel_size, dilation_rate, scope):
     """扩张因果卷积（Dilated Causal Convolution）"""
@@ -125,24 +124,24 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     dilation_rates = [1, 2,4, 8]
     kernel_size = 3
     #1
-    with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
-      dilation_rates = [1, 2, 4, 8]
-      conv_outputs = X
-      for rate in dilation_rates:
-        conv_outputs = tf.compat.v1.layers.conv1d(
-          conv_outputs,
-          filters=hidden_dim,
-          kernel_size=3,
-          dilation_rate=rate,
-          padding="causal",
-          activation=tf.nn.relu
-        )
-      H = tf.compat.v1.layers.dense(conv_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
+    #   dilation_rates = [1, 2, 4, 8]
+    #   conv_outputs = X
+    #   for rate in dilation_rates:
+    #     conv_outputs = tf.compat.v1.layers.conv1d(
+    #       conv_outputs,
+    #       filters=hidden_dim,
+    #       kernel_size=3,
+    #       dilation_rate=rate,
+    #       padding="causal",
+    #       activation=tf.nn.relu
+    #     )
+    #   H = tf.compat.v1.layers.dense(conv_outputs, hidden_dim, activation=tf.nn.sigmoid)
     #2
-    # with tf.compat.v1.variable_scope("embedder", reuse = tf.compat.v1.AUTO_REUSE):
-    #   e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-    #   e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
-    #   H = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    with tf.variable_scope("embedder", reuse = tf.AUTO_REUSE):
+      e_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+      e_outputs, e_last_states = tf.nn.dynamic_rnn(e_cell, X, dtype=tf.float32, sequence_length = T)
+      H = tf.contrib.layers.fully_connected(e_outputs, hidden_dim, activation_fn=tf.nn.sigmoid)
     #3
     # with tf.compat.v1.variable_scope("embedder", reuse=tf.compat.v1.AUTO_REUSE):
     #   conv_outputs = X  # 初始输入
@@ -178,29 +177,29 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     #   attention_scores = tf.nn.softmax(tf.matmul(H, tf.transpose(H, perm=[0, 2, 1])))
     #   attention_outputs = tf.matmul(attention_scores, H)
     #   X_tilde = tf.compat.v1.layers.dense(attention_outputs, dim, activation=tf.nn.sigmoid)
-    # with tf.compat.v1.variable_scope("recovery", reuse = tf.compat.v1.AUTO_REUSE):
-    #     r_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-    #     r_outputs, r_last_states = tf.compat.v1.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
-    #     X_tilde = tf.compat.v1.layers.dense(r_outputs, dim, activation=tf.nn.sigmoid)
+    with tf.variable_scope("recovery", reuse = tf.AUTO_REUSE):
+        r_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+        r_outputs, r_last_states = tf.nn.dynamic_rnn(r_cell, H, dtype=tf.float32, sequence_length = T)
+        X_tilde = tf.contrib.layers.fully_connected(r_outputs, dim, activation_fn=tf.nn.sigmoid)
 
-    with tf.compat.v1.variable_scope("recovery", reuse=tf.compat.v1.AUTO_REUSE):
-      # 1. 双向 RNN 作为编码器
-      encoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
-      encoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(encoder_cells)
-      encoder_outputs, encoder_final_state = tf.compat.v1.nn.dynamic_rnn(
-        encoder_cell, H, dtype=tf.float32, sequence_length=T
-      )
-      # 2. 注意力层计算权重
-      attention_layer = tf.keras.layers.Attention()
-      context_vector = attention_layer([encoder_outputs, encoder_outputs])  # 自注意力
-      # 3. 解码器：使用带注意力的 RNN
-      decoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
-      decoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(decoder_cells)
-      decoder_outputs, _ = tf.compat.v1.nn.dynamic_rnn(
-        decoder_cell, context_vector, dtype=tf.float32, sequence_length=T
-      )
-      # 4. 全连接层投影回原始数据维度
-      X_tilde = tf.compat.v1.layers.dense(decoder_outputs, dim, activation=tf.nn.sigmoid)
+    # with tf.compat.v1.variable_scope("recovery", reuse=tf.compat.v1.AUTO_REUSE):
+    #   # 1. 双向 RNN 作为编码器
+    #   encoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
+    #   encoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(encoder_cells)
+    #   encoder_outputs, encoder_final_state = tf.compat.v1.nn.dynamic_rnn(
+    #     encoder_cell, H, dtype=tf.float32, sequence_length=T
+    #   )
+    #   # 2. 注意力层计算权重
+    #   attention_layer = tf.keras.layers.Attention()
+    #   context_vector = attention_layer([encoder_outputs, encoder_outputs])  # 自注意力
+    #   # 3. 解码器：使用带注意力的 RNN
+    #   decoder_cells = [tf.compat.v1.nn.rnn_cell.GRUCell(hidden_dim) for _ in range(num_layers)]
+    #   decoder_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell(decoder_cells)
+    #   decoder_outputs, _ = tf.compat.v1.nn.dynamic_rnn(
+    #     decoder_cell, context_vector, dtype=tf.float32, sequence_length=T
+    #   )
+    #   # 4. 全连接层投影回原始数据维度
+    #   X_tilde = tf.compat.v1.layers.dense(decoder_outputs, dim, activation=tf.nn.sigmoid)
     return X_tilde
     
 
@@ -222,10 +221,10 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     #                                                          sequence_length=T)
     #   outputs_concat = tf.concat(outputs, axis=-1)
     #   E = tf.compat.v1.layers.dense(outputs_concat, hidden_dim, activation=tf.nn.sigmoid)
-    with tf.compat.v1.variable_scope("generator", reuse = tf.compat.v1.AUTO_REUSE):
-        e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-        e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, Z, dtype=tf.float32, sequence_length = T)
-        E = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)
+    with tf.variable_scope("generator", reuse = tf.AUTO_REUSE):
+        e_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+        e_outputs, e_last_states = tf.nn.dynamic_rnn(e_cell, Z, dtype=tf.float32, sequence_length = T)
+        E = tf.contrib.layers.fully_connected(e_outputs, hidden_dim, activation_fn=tf.nn.sigmoid)
     return E
 
   def supervisor (H, T):
@@ -238,10 +237,10 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     Returns:
       - S: generated sequence based on the latent representations generated by the generator
     """          
-    with tf.compat.v1.variable_scope("supervisor", reuse = tf.compat.v1.AUTO_REUSE):
-      e_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers-1)])
-      e_outputs, e_last_states = tf.compat.v1.nn.dynamic_rnn(e_cell, H, dtype=tf.float32, sequence_length = T)
-      S = tf.compat.v1.layers.dense(e_outputs, hidden_dim, activation=tf.nn.sigmoid)     
+    with tf.variable_scope("supervisor", reuse = tf.AUTO_REUSE):
+      e_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers-1)])
+      e_outputs, e_last_states = tf.nn.dynamic_rnn(e_cell, H, dtype=tf.float32, sequence_length = T)
+      S = tf.contrib.layers.fully_connected(e_outputs, hidden_dim, activation_fn=tf.nn.sigmoid)
     return S
           
   def discriminator (H, T):
@@ -254,10 +253,10 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     Returns:
       - Y_hat: classification results between original and synthetic time-series
     """        
-    with tf.compat.v1.variable_scope("discriminator", reuse = tf.compat.v1.AUTO_REUSE):
-      d_cell = tf.compat.v1.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
-      d_outputs, d_last_states = tf.compat.v1.nn.dynamic_rnn(d_cell, H, dtype=tf.float32, sequence_length = T)
-      Y_hat = tf.compat.v1.layers.dense(d_outputs, 1, activation=None) 
+    with tf.variable_scope("discriminator", reuse = tf.AUTO_REUSE):
+      d_cell = tf.nn.rnn_cell.MultiRNNCell([rnn_cell(module_name, hidden_dim) for _ in range(num_layers)])
+      d_outputs, d_last_states = tf.nn.dynamic_rnn(d_cell, H, dtype=tf.float32, sequence_length = T)
+      Y_hat = tf.contrib.layers.fully_connected(d_outputs, 1, activation_fn=None)
     return Y_hat   
     
   # Embedder & Recovery
@@ -278,25 +277,25 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   Y_fake_e = discriminator(E_hat, T)
     
   # Variables        
-  e_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('embedder')]
-  r_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('recovery')]
-  g_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('generator')]
-  s_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('supervisor')]
-  d_vars = [v for v in tf.compat.v1.trainable_variables() if v.name.startswith('discriminator')]
+  e_vars = [v for v in tf.trainable_variables() if v.name.startswith('embedder')]
+  r_vars = [v for v in tf.trainable_variables() if v.name.startswith('recovery')]
+  g_vars = [v for v in tf.trainable_variables() if v.name.startswith('generator')]
+  s_vars = [v for v in tf.trainable_variables() if v.name.startswith('supervisor')]
+  d_vars = [v for v in tf.trainable_variables() if v.name.startswith('discriminator')]
     
   # Discriminator loss
-  D_loss_real = tf.compat.v1.losses.sigmoid_cross_entropy(tf.ones_like(Y_real), Y_real)
-  D_loss_fake = tf.compat.v1.losses.sigmoid_cross_entropy(tf.zeros_like(Y_fake), Y_fake)
-  D_loss_fake_e = tf.compat.v1.losses.sigmoid_cross_entropy(tf.zeros_like(Y_fake_e), Y_fake_e)
+  D_loss_real = tf.losses.sigmoid_cross_entropy(tf.ones_like(Y_real), Y_real)
+  D_loss_fake = tf.losses.sigmoid_cross_entropy(tf.zeros_like(Y_fake), Y_fake)
+  D_loss_fake_e = tf.losses.sigmoid_cross_entropy(tf.zeros_like(Y_fake_e), Y_fake_e)
   D_loss = D_loss_real + D_loss_fake + gamma * D_loss_fake_e
             
   # Generator loss
   # 1. Adversarial loss
-  G_loss_U = tf.compat.v1.losses.sigmoid_cross_entropy(tf.ones_like(Y_fake), Y_fake)
-  G_loss_U_e = tf.compat.v1.losses.sigmoid_cross_entropy(tf.ones_like(Y_fake_e), Y_fake_e)
+  G_loss_U = tf.losses.sigmoid_cross_entropy(tf.ones_like(Y_fake), Y_fake)
+  G_loss_U_e = tf.losses.sigmoid_cross_entropy(tf.ones_like(Y_fake_e), Y_fake_e)
     
   # 2. Supervised loss
-  G_loss_S = tf.compat.v1.losses.mean_squared_error(H[:,1:,:], H_hat_supervise[:,:-1,:])
+  G_loss_S = tf.losses.mean_squared_error(H[:,1:,:], H_hat_supervise[:,:-1,:])
     
   # 3. Two Momments
   G_loss_V1 = tf.reduce_mean(tf.abs(tf.sqrt(tf.nn.moments(X_hat,[0])[1] + 1e-6) - tf.sqrt(tf.nn.moments(X,[0])[1] + 1e-6)))
@@ -308,21 +307,21 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   G_loss = G_loss_U + gamma * G_loss_U_e + 100 * tf.sqrt(G_loss_S) + 100*G_loss_V 
             
   # Embedder network loss
-  E_loss_T0 = tf.compat.v1.losses.mean_squared_error(X, X_tilde)
+  E_loss_T0 = tf.losses.mean_squared_error(X, X_tilde)
   E_loss0 = 10*tf.sqrt(E_loss_T0)
   E_loss = E_loss0  + 0.1*G_loss_S
     
   # optimizer
-  E0_solver = tf.compat.v1.train.AdamOptimizer().minimize(E_loss0, var_list = e_vars + r_vars)
-  E_solver = tf.compat.v1.train.AdamOptimizer().minimize(E_loss, var_list = e_vars + r_vars)
-  D_solver = tf.compat.v1.train.AdamOptimizer().minimize(D_loss, var_list = d_vars)
-  G_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss, var_list = g_vars + s_vars)      
-  GS_solver = tf.compat.v1.train.AdamOptimizer().minimize(G_loss_S, var_list = g_vars + s_vars)
+  E0_solver = tf.train.AdamOptimizer().minimize(E_loss0, var_list = e_vars + r_vars)
+  E_solver = tf.train.AdamOptimizer().minimize(E_loss, var_list = e_vars + r_vars)
+  D_solver = tf.train.AdamOptimizer().minimize(D_loss, var_list = d_vars)
+  G_solver = tf.train.AdamOptimizer().minimize(G_loss, var_list = g_vars + s_vars)
+  GS_solver = tf.train.AdamOptimizer().minimize(G_loss_S, var_list = g_vars + s_vars)
 
-  saver = tf.compat.v1.train.Saver()
+  saver = tf.train.Saver()
   ## TimeGAN training
-  sess = tf.compat.v1.Session()
-  sess.run(tf.compat.v1.global_variables_initializer())
+  sess = tf.Session()
+  sess.run(tf.global_variables_initializer())
   #
   # if load_model  and os.path.exists(model_path + ".meta"):
   #   print(f"Loading model from {model_path}...")
