@@ -40,7 +40,8 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   Returns:
     - generated_data: generated time-series data
   """
-  result_path=result_path+'/'+'time.txt'
+  global train_time
+
 
   # Initialization on the Graph
   tf.reset_default_graph()
@@ -403,8 +404,8 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
     end_train=time.time()
     train_time=end_train-start_train
     print(f">>>>>>>>>>>>>>>>>>>>>>模型已保存,用时:{train_time / 60:.4f} min<<<<<<<<<<<<<<<<<<")
-    with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
-      file.write(f"模型已保存,用时:{train_time / 60:.4f} min")  # 每个结果之间换行
+    # with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
+    #   file.write(f"模型已保存,用时:{train_time / 60:.4f} min")  # 每个结果之间换行
   else:
     print(f"Loading model from {model_path}...")
     saver.restore(sess, model_path)
@@ -431,6 +432,6 @@ def timegan (ori_data, parameters,model_path,train=True,result_path=None):
   end_gen=time.time()
   gen_time=end_gen-start_gen
   print(f">>>>>>>>>>>>>>>>>>>>>>模型生成时间:{gen_time :.4f} s<<<<<<<<<<<<<<<<<<")
-  with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
-    file.write(f"模型生成时间:{gen_time :.4f} s")  # 每个结果之间换行
-  return generated_data
+  # with open(result_path, 'a') as file:  # 使用 'w' 模式，每次都会覆盖文件
+  #   file.write(f"模型生成时间:{gen_time :.4f} s")  # 每个结果之间换行
+  return generated_data, train_time, gen_time

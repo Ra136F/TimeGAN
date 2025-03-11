@@ -78,7 +78,7 @@ def main (args):
     ori_data = sine_data_generation(no, args.seq_len, dim)
     
   print(args.data_name + ' dataset is ready.')
-  print(len(ori_data))
+  print(f'数据集记录:{len(ori_data)}')
     
   ## Synthetic data generation by TimeGAN
   # Set newtork parameters
@@ -104,7 +104,7 @@ def main (args):
   # else:
   #     print(f"No model found at {model_path}, starting training from scratch.")
   #     load_model = False
-  generated_data = timegan(ori_data, parameters,model_path,args.train,result_path)
+  generated_data,train_time,gen_time = timegan(ori_data, parameters,model_path,args.train,result_path)
 
 
   # generated_data = timegan(ori_data, parameters)
@@ -137,7 +137,7 @@ def main (args):
   ## Print discriminative and predictive scores
   # print(metric_results)
 
-  return ori_data, generated_data
+  return ori_data, generated_data,train_time,gen_time
 
 def generate_synthetic_data(sess, ori_data, parameters):
     """Generate synthetic data using the trained TimeGAN model."""
@@ -222,24 +222,29 @@ if __name__ == '__main__':
   args = parser.parse_args() 
   
   # Calls main function  
-  ori_data, generated_data = main(args)
+  ori_data, generated_data,train_time,gen_time = main(args)
+  #重新读入真实数据
   true_data, min, max = real_data_loading2(args.data_name, args.seq_len, args.target, args.feature)
+  true_data = np.array(true_data)
   #三维转二维数组
   gen_data=restore_data(generated_data,args.seq_len,min,max)
-  #重新加载真实数据
-
-  # true_data=np.asarray(ori_data)
-  true_data=np.array(true_data)
   true_data = restore_data(true_data, args.seq_len,min,max)
   # real_y_true_mask = (1 - (true_data == 0))
   # rmse=calculate_rmse(true_data, gen_data)
   # mape=calculate_mape(true_data, gen_data, real_y_true_mask)
+  #计算指标
   smape, rmse, mape = calculate_metrics(true_data, gen_data)
   print(f"RMSE: {rmse}")
   print(f"MAPE: {mape}")
   print(f'smape:{smape}')
   # 绘图
   plottp(true_data,gen_data,args.data_name)
+  #计算DTW
   distance=dtw_distance(true_data,gen_data)
   print(f"DTW 距离: {distance}")
+  #保存训练与生成时间
+  time_path='./result'+'data-{}'.format(args.data_name)+'/'+'time-{}.txt'.format(args.iteration)
+  with open(time_path, 'w') as file:
+      file.write(f"模型已保存,用时:{train_time / 60:.4f} min\n")
+      file.write(f"模型生成时间:{gen_time :.4f} s\n")
 
