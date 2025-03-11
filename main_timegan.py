@@ -189,7 +189,7 @@ if __name__ == '__main__':
   parser.add_argument(
       '--iteration',
       help='Training iterations (should be optimized)',
-      default=5000,
+      default=10000,
       type=int)
   parser.add_argument(
       '--batch_size',
